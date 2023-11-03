@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter_crud_app_sqlite/model/person.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -42,6 +41,35 @@ class PersonDB {
     return true;
   }
 
+  Future<bool> update(Person person) async {
+    final db = _db;
+    if (db == null) {
+      return false;
+    }
+    try {
+      final updateCount = await db.update(
+        'PEOPLE',
+        {
+          'FIRST_NAME': person.firstName,
+          'LAST_NAME': person.lastName,
+        },
+        where: 'ID = ?',
+        whereArgs: [person.id],
+      );
+      if (updateCount == 1) {
+        _persons.removeWhere((other) => other.id == person.id);
+        _persons.add(person);
+        _streamController.add(_persons);
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      print('Update failed with Error : $e');
+      return false;
+    }
+  }
+
   Future<bool> delete(Person person) async {
     final db = _db;
     if (db == null) {
@@ -53,14 +81,13 @@ class PersonDB {
         where: 'ID = ?',
         whereArgs: [person.id],
       );
-      if(deletedCount == 1){
+      if (deletedCount == 1) {
         _persons.remove(person);
         _streamController.add(_persons);
         return true;
-      } else{
+      } else {
         return false;
       }
-
     } catch (e) {
       print('Deletion failed with Error : $e');
       return false;

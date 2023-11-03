@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_crud_app_sqlite/model/person.dart';
@@ -36,7 +38,6 @@ class _HomePageState extends State<HomePage> {
       body: StreamBuilder(
         stream: _crudStorage.allPerson(),
         builder: (context, snapshot) {
-          print('snapshot $snapshot');
           switch (snapshot.connectionState) {
             case ConnectionState.active:
             case ConnectionState.waiting:
@@ -46,8 +47,6 @@ class _HomePageState extends State<HomePage> {
                 );
               }
               final people = snapshot.data as List<Person>;
-              print("people: $people");
-
               return Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Column(
@@ -55,8 +54,6 @@ class _HomePageState extends State<HomePage> {
                     PersonDataInput(
                       onCompose: (firstName, lastName) async {
                         await _crudStorage.create(firstName, lastName);
-                        print(firstName);
-                        print(lastName);
                       },
                     ),
                     const SizedBox(height: 20),
@@ -67,6 +64,13 @@ class _HomePageState extends State<HomePage> {
                             final person = people[index];
                             return Card(
                               child: ListTile(
+                                onTap: () async {
+                                  final updatePerson =
+                                      await showUpdateDialog(context, person);
+                                  if (updatePerson != null) {
+                                    await _crudStorage.update(updatePerson);
+                                  }
+                                },
                                 leading: Text(
                                   "${person.id.toString()}.",
                                   style: const TextStyle(
@@ -79,6 +83,7 @@ class _HomePageState extends State<HomePage> {
                                   onTap: () async {
                                     final shouldDelete =
                                         await showDeleteDialog(context);
+                                    log('result: $shouldDelete');
                                     if (shouldDelete) {
                                       await _crudStorage.delete(person);
                                     }
@@ -101,6 +106,55 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+}
+
+final _firstNameController = TextEditingController();
+final _lastNameController = TextEditingController();
+
+Future<Person?> showUpdateDialog(BuildContext context, Person person) {
+  _firstNameController.text = person.firstName;
+  _lastNameController.text = person.lastName;
+  return showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter Your Update Value here'),
+            const SizedBox(height: 10),
+            TextField(controller: _firstNameController),
+            const SizedBox(height: 12),
+            TextField(controller: _lastNameController),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              final editPerson = Person(
+                id: person.id,
+                firstName: _firstNameController.text,
+                lastName: _lastNameController.text,
+              );
+              Navigator.of(context).pop(editPerson);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      );
+    },
+  ).then((value) {
+    if (value is Person) {
+      return value;
+    } else {
+      return null;
+    }
+  });
 }
 
 Future<bool> showDeleteDialog(BuildContext context) {
